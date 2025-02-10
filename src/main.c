@@ -6,6 +6,8 @@
 #include <math.h>
 #include <stdlib.h>
 #include <time.h>
+#include <pwd.h>
+#include <unistd.h>
 
 
 #define MAX_OPTIONS 20
@@ -35,6 +37,30 @@ Color GenerateRandomColor(void);
 void UpdateCarouselSpin(Carousel *carousel);
 float GetSectorAngle(int optionCount);
 void AdjustToNearestSector(Carousel *carousel);
+
+
+char* get_data_path() {
+    static char path[1024];
+    const char *home;
+    
+    // Try XDG_DATA_HOME first
+    home = getenv("XDG_DATA_HOME");
+    if (home != NULL) {
+        snprintf(path, sizeof(path), "%s/carousel", home);
+    } else {
+        // Fall back to ~/.local/share
+        home = getenv("HOME");
+        if (home == NULL) {
+            home = getpwuid(getuid())->pw_dir;
+        }
+        snprintf(path, sizeof(path), "%s/.local/share/carousel", home);
+    }
+    
+    // Create directory if it doesn't exist
+    mkdir(path, 0755);
+    
+    return path;
+}
 
 int main(void) {
     InitWindow(800, 600, "Carousel Options");
@@ -163,7 +189,10 @@ void DrawCarousel(Carousel *carousel) {
 }
 
 void SaveOptions(Carousel *carousel) {
-    FILE *file = fopen("carousel_options.dat", "wb");
+    char filepath[1024];
+    snprintf(filepath, sizeof(filepath), "%s/options.dat", get_data_path());
+    
+    FILE *file = fopen(filepath, "wb");
     if (file) {
         fwrite(&carousel->count, sizeof(int), 1, file);
         fwrite(carousel->options, sizeof(Option), carousel->count, file);
@@ -172,7 +201,10 @@ void SaveOptions(Carousel *carousel) {
 }
 
 void LoadOptions(Carousel *carousel) {
-    FILE *file = fopen("carousel_options.dat", "rb");
+    char filepath[1024];
+    snprintf(filepath, sizeof(filepath), "%s/options.dat", get_data_path());
+    
+    FILE *file = fopen(filepath, "rb");
     if (file) {
         size_t read;
         read = fread(&carousel->count, sizeof(int), 1, file);
@@ -186,7 +218,6 @@ void LoadOptions(Carousel *carousel) {
         fclose(file);
     }
 }
-
 void AddOption(Carousel *carousel, const char *text) {
     if (carousel->count < MAX_OPTIONS) {
         strcpy(carousel->options[carousel->count].text, text);
