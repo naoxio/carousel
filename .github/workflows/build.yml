@@ -1,0 +1,52 @@
+name: Linux Development Build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  linux-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            ninja-build \
+            libraylib-dev \
+            libraygui-dev \
+            libgl1-mesa-dev \
+            libx11-dev \
+            zlib1g-dev
+
+      - name: Build
+        run: |
+          make
+          mkdir -p artifacts/carousel-linux-x86_64
+          cp build/carousel artifacts/carousel-linux-x86_64/
+          cd artifacts
+          tar czf carousel-linux-x86_64.tar.gz carousel-linux-x86_64/
+
+      - name: Generate date
+        id: date
+        run: echo "date=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+
+      - name: Create Development Release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: dev-${{ steps.date.outputs.date }}
+          name: Development Build ${{ steps.date.outputs.date }}
+          draft: false
+          prerelease: true
+          files: artifacts/carousel-linux-x86_64.tar.gz
