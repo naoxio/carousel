@@ -29,14 +29,18 @@ RAYGUI_PATH = raygui
 # Default target (native build)
 all: $(BUILD_DIR)/$(TARGET)
 
+RAYGUI_FLAGS = -DRAYGUI_IMPLEMENTATION -DRAYLIB_VERSION_MINOR=5 -DRAYLIB_VERSION_MAJOR=5
+
 # Local build with source-compiled raylib
+
 local: $(SRC_DIR)/main.c
 	@mkdir -p $(BUILD_DIR)
 	$(CC) $< -o $(BUILD_DIR)/$(TARGET) \
-		-I$(RAYLIB_PATH)/src \
-		-I$(RAYGUI_PATH)/src \
-		-L$(RAYLIB_PATH)/build/raylib \
-		$(CFLAGS) -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
+        -I$(RAYLIB_PATH)/src \
+        -I$(RAYGUI_PATH)/src \
+        -L$(RAYLIB_PATH)/build/raylib \
+        $(CFLAGS) $(RAYGUI_FLAGS) -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
+
 
 # Native build rules
 $(BUILD_DIR)/$(TARGET): $(SRC_DIR)/main.c
