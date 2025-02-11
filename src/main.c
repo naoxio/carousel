@@ -76,7 +76,7 @@ char* get_data_path() {
 #endif
 
 int main(void) {
-    InitWindow(800, 600, "Carousel Options");
+    InitWindow(800, 600, "Carousel");
     SetTargetFPS(60);
 
     Carousel carousel = {0};

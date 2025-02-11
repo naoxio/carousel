@@ -20,10 +20,23 @@ EMLDFLAGS = -s USE_GLFW=3 -s WASM=1 -s ASYNCIFY -s ALLOW_MEMORY_GROWTH=1 \
             -s MINIFY_HTML=0 \
             --shell-file shell.html
 
-.PHONY: all clean web raylib_web raygui_web rebuild
+# Local build paths
+RAYLIB_PATH = raylib
+RAYGUI_PATH = raygui
+
+.PHONY: all clean web raylib_web raygui_web rebuild local
 
 # Default target (native build)
 all: $(BUILD_DIR)/$(TARGET)
+
+# Local build with source-compiled raylib
+local: $(SRC_DIR)/main.c
+	@mkdir -p $(BUILD_DIR)
+	$(CC) $< -o $(BUILD_DIR)/$(TARGET) \
+		-I$(RAYLIB_PATH)/src \
+		-I$(RAYGUI_PATH)/src \
+		-L$(RAYLIB_PATH)/build/raylib \
+		$(CFLAGS) -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
 
 # Native build rules
 $(BUILD_DIR)/$(TARGET): $(SRC_DIR)/main.c

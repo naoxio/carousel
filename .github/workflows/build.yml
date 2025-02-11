@@ -22,15 +22,34 @@ jobs:
             build-essential \
             cmake \
             ninja-build \
-            libraylib-dev \
-            libraygui-dev \
             libgl1-mesa-dev \
             libx11-dev \
-            zlib1g-dev
+            libxrandr-dev \
+            libxi-dev \
+            libxinerama-dev \
+            libxcursor-dev \
+            libglu1-mesa-dev \
+            zlib1g-dev \
+            pkg-config
 
-      - name: Build
+      - name: Build raylib
         run: |
+          git clone --depth 1 --branch '5.0' https://github.com/raysan5/raylib.git
+          cd raylib
+          mkdir build && cd build
+          cmake -DBUILD_SHARED_LIBS=OFF ..
           make
+          cd ../..
+
+      - name: Setup raygui
+        run: |
+          git clone --depth 1 https://github.com/raysan5/raygui.git
+
+      - name: Build Project
+        run: make local
+
+      - name: Package
+        run: |
           mkdir -p artifacts/carousel-linux-x86_64
           cp build/carousel artifacts/carousel-linux-x86_64/
           cd artifacts
@@ -50,3 +69,4 @@ jobs:
           draft: false
           prerelease: true
           files: artifacts/carousel-linux-x86_64.tar.gz
+          
