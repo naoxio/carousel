@@ -8,6 +8,6 @@ mkdir -p ~/bin
 rm -f ~/bin/carousel
 
 # Create new symlink
-ln -s "$(pwd)/bin/carousel" ~/bin/carousel
+cp "$(pwd)/build/carousel" ~/bin/carousel
 
 echo "Installed carousel to ~/bin/"

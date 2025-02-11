@@ -6,9 +6,13 @@
 #include <math.h>
 #include <stdlib.h>
 #include <time.h>
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#else
 #include <pwd.h>
 #include <unistd.h>
-
+#endif
 
 #define MAX_OPTIONS 20
 #define MAX_OPTION_LENGTH 50
@@ -38,7 +42,15 @@ void UpdateCarouselSpin(Carousel *carousel);
 float GetSectorAngle(int optionCount);
 void AdjustToNearestSector(Carousel *carousel);
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#else
+#include <pwd.h>
+#include <unistd.h>
+#endif
 
+// Helper function to get storage path/key
+#ifndef __EMSCRIPTEN__
 char* get_data_path() {
     static char path[1024];
     const char *home;
@@ -61,6 +73,7 @@ char* get_data_path() {
     
     return path;
 }
+#endif
 
 int main(void) {
     InitWindow(800, 600, "Carousel Options");
@@ -190,6 +203,29 @@ void DrawCarousel(Carousel *carousel) {
 }
 
 void SaveOptions(Carousel *carousel) {
+#ifdef __EMSCRIPTEN__
+    // Convert carousel data to string format
+    char buffer[4096] = {0};
+    char *ptr = buffer;
+    
+    // Write count
+    ptr += sprintf(ptr, "%d;", carousel->count);
+    
+    // Write each option
+    for (int i = 0; i < carousel->count; i++) {
+        ptr += sprintf(ptr, "%s,%d,%d,%d;", 
+            carousel->options[i].text,
+            carousel->options[i].color.r,
+            carousel->options[i].color.g,
+            carousel->options[i].color.b
+        );
+    }
+    
+    // Save to localStorage
+    EM_ASM({
+        localStorage.setItem('carouselData', UTF8ToString($0));
+    }, buffer);
+#else
     char filepath[1024];
     snprintf(filepath, sizeof(filepath), "%s/options.dat", get_data_path());
     
@@ -199,9 +235,56 @@ void SaveOptions(Carousel *carousel) {
         fwrite(carousel->options, sizeof(Option), carousel->count, file);
         fclose(file);
     }
+#endif
 }
 
 void LoadOptions(Carousel *carousel) {
+#ifdef __EMSCRIPTEN__
+    // Get data from localStorage
+    char* data = (char*)EM_ASM_INT({
+        var data = localStorage.getItem('carouselData');
+        if (!data) return 0;
+        
+        var lengthBytes = lengthBytesUTF8(data) + 1;
+        var stringOnWasmHeap = _malloc(lengthBytes);
+        stringToUTF8(data, stringOnWasmHeap, lengthBytes);
+        return stringOnWasmHeap;
+    });
+    
+    if (!data) {
+        carousel->count = 0;
+        return;
+    }
+    
+    // Parse the data
+    char *token = strtok(data, ";");
+    if (token) {
+        carousel->count = atoi(token);
+        
+        int i = 0;
+        while ((token = strtok(NULL, ";")) && i < carousel->count) {
+            char *text = strtok(token, ",");
+            char *r = strtok(NULL, ",");
+            char *g = strtok(NULL, ",");
+            char *b = strtok(NULL, ",");
+            
+            if (text && r && g && b) {
+                strncpy(carousel->options[i].text, text, MAX_OPTION_LENGTH - 1);
+                carousel->options[i].color = (Color){
+                    (unsigned char)atoi(r),
+                    (unsigned char)atoi(g),
+                    (unsigned char)atoi(b),
+                    255
+                };
+                i++;
+            }
+        }
+        carousel->count = i;  // Update count to actual number parsed
+    }
+    
+    // Free the allocated memory
+    free(data);
+#else
     char filepath[1024];
     snprintf(filepath, sizeof(filepath), "%s/options.dat", get_data_path());
     
@@ -218,6 +301,7 @@ void LoadOptions(Carousel *carousel) {
         }
         fclose(file);
     }
+#endif
 }
 void AddOption(Carousel *carousel, const char *text) {
     if (carousel->count < MAX_OPTIONS) {
