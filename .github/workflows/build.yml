@@ -44,9 +44,11 @@ jobs:
       - name: Setup raygui
         run: |
           git clone --depth 1 https://github.com/raysan5/raygui.git
-
       - name: Build Project
-        run: make local
+        run: |
+          ls -la 
+          ls -la raylib/build/raylib 
+          make local
 
       - name: Package
         run: |
@@ -69,4 +71,3 @@ jobs:
           draft: false
           prerelease: true
           files: artifacts/carousel-linux-x86_64.tar.gz
-          
