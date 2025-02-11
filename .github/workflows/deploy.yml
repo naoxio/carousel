@@ -1,4 +1,4 @@
-name: Deploy to Netlify
+name: Linux Development Build
 
 on:
   push:
@@ -7,49 +7,82 @@ on:
     branches: [ master ]
 
 jobs:
-  build-and-deploy:
+  linux-build:
     runs-on: ubuntu-latest
-
+    
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
 
-      - name: Install Dependencies
+      - name: Install Base Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             build-essential \
             cmake \
             ninja-build \
-            git \
-            python3
+            libgl1-mesa-dev \
+            libx11-dev \
+            libxrandr-dev \
+            libxi-dev \
+            libxinerama-dev \
+            libxcursor-dev \
+            libglu1-mesa-dev \
+            zlib1g-dev \
+            pkg-config
 
-      - name: Setup Emscripten
-        uses: mymindstorm/setup-emsdk@v14
+      - name: Cache raylib build
+        id: cache-raylib
+        uses: actions/cache@v3
         with:
-          version: '3.1.74'
-          actions-cache-folder: 'emsdk-cache'
+          path: raylib-build
+          key: ${{ runner.os }}-raylib-5.0
 
-      - name: Build for Web
+      - name: Build raylib
+        if: steps.cache-raylib.outputs.cache-hit != 'true'
         run: |
-          make web
+          git clone --depth 1 --branch '5.0' https://github.com/raysan5/raylib.git
+          cd raylib
+          mkdir build && cd build
+          cmake -DBUILD_SHARED_LIBS=OFF ..
+          make
+          sudo make install
+          cd ../..
+          mkdir -p raylib-build
+          cp -r raylib/build/* raylib-build/
 
-      - name: Prepare for Netlify
+      - name: Install cached raylib
+        if: steps.cache-raylib.outputs.cache-hit == 'true'
         run: |
-          mkdir -p netlify
-          cp -r build_web/* netlify/
-          # Add any additional assets if needed
-          # cp -r assets netlify/
+          cd raylib-build
+          sudo make install
+          cd ..
 
-      - name: Deploy to Netlify
-        uses: nwtgck/actions-netlify@v2
-        with:
-          publish-dir: './netlify'
-          production-deploy: true
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          netlify-auth-token: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          netlify-site-id: ${{ secrets.NETLIFY_SITE_ID }}
+      - name: Setup raygui
+        run: |
+          git clone --depth 1 https://github.com/raysan5/raygui.git
+          sudo cp raygui/src/raygui.h /usr/local/include/
+
+      - name: Build Project
+        run: |
+          make
+          mkdir -p artifacts/carousel-linux-x86_64
+          cp build/carousel artifacts/carousel-linux-x86_64/
+          cd artifacts
+          tar czf carousel-linux-x86_64.tar.gz carousel-linux-x86_64/
+
+      - name: Generate date
+        id: date
+        run: echo "date=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+
+      - name: Create Development Release
+        uses: softprops/action-gh-release@v1
         env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: dev-${{ steps.date.outputs.date }}
+          name: Development Build ${{ steps.date.outputs.date }}
+          draft: false
+          prerelease: true
+          files: artifacts/carousel-linux-x86_64.tar.gz
