@@ -6,6 +6,15 @@ RAYLIB_WEB_DIR = $(BUILD_DIR)/raylib_web
 RAYGUI_WEB_DIR = $(BUILD_DIR)/raygui_web
 TARGET = carousel
 
+# Assets and web files
+ASSETS_DIR = assets
+WEB_ASSETS = $(ASSETS_DIR)/favicon.ico \
+             $(ASSETS_DIR)/apple-touch-icon.png \
+             $(ASSETS_DIR)/icon-192.png \
+             $(ASSETS_DIR)/icon-192-maskable.png \
+             $(ASSETS_DIR)/icon-512.png \
+             $(ASSETS_DIR)/icon-512-maskable.png
+
 # Native build configuration
 CC = gcc
 CFLAGS = -Wall -Wextra -O2 
@@ -24,15 +33,15 @@ EMLDFLAGS = -s USE_GLFW=3 -s WASM=1 -s ASYNCIFY -s ALLOW_MEMORY_GROWTH=1 \
 RAYLIB_PATH = raylib
 RAYGUI_PATH = raygui
 
-.PHONY: all clean web raylib_web raygui_web rebuild local
+# Raygui flags
+RAYGUI_FLAGS = -DRAYGUI_IMPLEMENTATION -DRAYLIB_VERSION_MINOR=5 -DRAYLIB_VERSION_MAJOR=5
+
+.PHONY: all clean web raylib_web raygui_web rebuild local copy-web-assets
 
 # Default target (native build)
 all: $(BUILD_DIR)/$(TARGET)
 
-RAYGUI_FLAGS = -DRAYGUI_IMPLEMENTATION -DRAYLIB_VERSION_MINOR=5 -DRAYLIB_VERSION_MAJOR=5
-
 # Local build with source-compiled raylib
-
 local: $(SRC_DIR)/main.c
 	@mkdir -p $(BUILD_DIR)
 	$(CC) $< -o $(BUILD_DIR)/$(TARGET) \
@@ -40,7 +49,6 @@ local: $(SRC_DIR)/main.c
         -I$(RAYGUI_PATH)/src \
         -L$(RAYLIB_PATH)/build/raylib \
         $(CFLAGS) $(RAYGUI_FLAGS) -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
-
 
 # Native build rules
 $(BUILD_DIR)/$(TARGET): $(SRC_DIR)/main.c
@@ -74,8 +82,15 @@ $(RAYGUI_WEB_DIR)/src/raygui.h:
 
 raygui_web: $(RAYGUI_WEB_DIR)/src/raygui.h
 
+# Copy web assets
+copy-web-assets:
+	@mkdir -p $(WEB_BUILD_DIR)/assets
+	@cp -r $(WEB_ASSETS) $(WEB_BUILD_DIR)/assets/
+	@cp manifest.json $(WEB_BUILD_DIR)/
+	@cp service-worker.js $(WEB_BUILD_DIR)/
+
 # Web build target
-web: raylib_web raygui_web
+web: raylib_web raygui_web copy-web-assets
 	@mkdir -p $(WEB_BUILD_DIR)
 	$(EMCC) $(SRC_DIR)/main.c -o $(WEB_BUILD_DIR)/index.html $(EMFLAGS) $(EMLDFLAGS) $(RAYLIB_WEB_DIR)/src/libraylib.a
 
