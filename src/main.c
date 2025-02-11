@@ -67,7 +67,7 @@ int main(void) {
     SetTargetFPS(60);
 
     Carousel carousel = {0};
-    carousel.currentAngle = 0.0f;
+    carousel.currentAngle = -90.0f;
     carousel.isSpinning = false;
     
     LoadOptions(&carousel);
@@ -80,7 +80,7 @@ int main(void) {
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             Vector2 mousePos = GetMousePosition();
             if (CheckCollisionPointCircle(mousePos, (Vector2){400, 300}, 150)) {
-                if (!carousel.isSpinning && carousel.count > 0) {
+                if (carousel.count > 0) {  // Removed the !carousel.isSpinning check
                     carousel.isSpinning = true;
                     carousel.spinSpeed = 20.0f + (float)GetRandomValue(0, 10);
                     carousel.targetAngle = carousel.currentAngle + 
@@ -151,7 +151,6 @@ int main(void) {
     CloseWindow();
     return 0;
 }
-
 void DrawCarousel(Carousel *carousel) {
     if (carousel->count == 0) return;
 
@@ -160,23 +159,25 @@ void DrawCarousel(Carousel *carousel) {
     float radius = 150;
     float sectorAngle = GetSectorAngle(carousel->count);
 
-    // Draw sectors
+    // Draw sectors with 90-degree offset so sectors align with needle at top
     for (int i = 0; i < carousel->count; i++) {
-        float startAngle = carousel->currentAngle + i * sectorAngle;
-        // Replace DrawSectorPro with DrawCircleSector
+        float startAngle = carousel->currentAngle + i * sectorAngle - 90;  // Offset by 90 degrees
         DrawCircleSector((Vector2){centerX, centerY}, radius, 
                         startAngle, startAngle + sectorAngle, 
                         32, carousel->options[i].color);
         
-        // Draw text
+        // Calculate text position and rotation (also offset by 90 degrees)
         float textAngle = startAngle + sectorAngle / 2;
-        float textX = centerX + cosf(textAngle * DEG2RAD) * (radius * 0.7f);
-        float textY = centerY + sinf(textAngle * DEG2RAD) * (radius * 0.7f);
+        float textX = centerX + cosf(textAngle * DEG2RAD) * (radius * 0.6f);
+        float textY = centerY + sinf(textAngle * DEG2RAD) * (radius * 0.6f);
         
         Vector2 textPos = {textX, textY};
-        float rotation = textAngle + 90;
+        int textWidth = MeasureText(carousel->options[i].text, 20);
+        Vector2 textOrigin = {textWidth/2.0f, 10.0f};
+        float rotation = textAngle;
+        
         DrawTextPro(GetFontDefault(), carousel->options[i].text,
-                   textPos, (Vector2){0, 0}, rotation, 20, 2, WHITE);
+                   textPos, textOrigin, rotation, 20, 1, WHITE);
     }
 
     // Draw needle
@@ -247,26 +248,67 @@ Color GenerateRandomColor(void) {
 float GetSectorAngle(int optionCount) {
     return 360.0f / optionCount;
 }
-
 void UpdateCarouselSpin(Carousel *carousel) {
     if (carousel->isSpinning) {
-        carousel->currentAngle += carousel->spinSpeed;
-        carousel->spinSpeed *= 0.98f; // Deceleration
-
-        if (carousel->spinSpeed < 0.1f) {
-            carousel->isSpinning = false;
-            AdjustToNearestSector(carousel);
+        if (carousel->spinSpeed > 1.0f) {
+            // Normal spinning deceleration
+            carousel->currentAngle += carousel->spinSpeed;
+            carousel->spinSpeed *= 0.97f;
+        } else {
+            // We're going slow enough to start centering
+            float sectorAngle = GetSectorAngle(carousel->count);
+            float halfSectorAngle = sectorAngle / 2.0f;
+            
+            // Find current sector and its center
+            float normalizedAngle = carousel->currentAngle + halfSectorAngle;
+            int sector = floor(normalizedAngle / sectorAngle);
+            float targetAngle = (sector * sectorAngle) - halfSectorAngle;
+            
+            // Calculate shortest path to target
+            float angleDiff = targetAngle - carousel->currentAngle;
+            if (angleDiff > 180.0f) angleDiff -= 360.0f;
+            if (angleDiff < -180.0f) angleDiff += 360.0f;
+            
+            // Smoothly move towards center
+            float moveSpeed = angleDiff * 0.1f;
+            carousel->currentAngle += moveSpeed;
+            
+            // Stop when very close to center
+            if (fabs(moveSpeed) < 0.01f) {
+                carousel->isSpinning = false;
+                carousel->currentAngle = targetAngle;
+                carousel->spinSpeed = 0.0f;  // Reset spin speed when stopped
+            }
         }
 
         // Keep angle within 360 degrees
         while (carousel->currentAngle >= 360.0f) {
             carousel->currentAngle -= 360.0f;
         }
+        while (carousel->currentAngle < 0.0f) {
+            carousel->currentAngle += 360.0f;
+        }
     }
 }
-
 void AdjustToNearestSector(Carousel *carousel) {
+    if (carousel->count == 0) return;
+
     float sectorAngle = GetSectorAngle(carousel->count);
-    float targetSector = roundf(carousel->currentAngle / sectorAngle);
-    carousel->currentAngle = targetSector * sectorAngle;
+    float halfSectorAngle = sectorAngle / 2.0f;
+    
+    // Normalize angle to nearest sector center
+    float normalizedAngle = carousel->currentAngle + halfSectorAngle;
+    int sector = floor(normalizedAngle / sectorAngle);
+    carousel->currentAngle = (sector * sectorAngle) - halfSectorAngle;
+    
+    // Keep angle within proper range
+    while (carousel->currentAngle >= 360.0f) {
+        carousel->currentAngle -= 360.0f;
+    }
+    while (carousel->currentAngle < 0.0f) {
+        carousel->currentAngle += 360.0f;
+    }
+    
+    carousel->spinSpeed = 0.0f;
+    carousel->isSpinning = false;
 }
