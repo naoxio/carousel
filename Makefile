@@ -37,19 +37,25 @@ RAYGUI_PATH = raygui
 # Raygui flags
 RAYGUI_FLAGS = -DRAYGUI_IMPLEMENTATION -DRAYLIB_VERSION_MINOR=5 -DRAYLIB_VERSION_MAJOR=5
 
-.PHONY: all clean web raylib_web raygui_web rebuild local copy-web-assets
-
+.PHONY: all clean web raylib_web raygui_web rebuild local copy-web-assets raylib
 # Default target (native build)
 all: $(BUILD_DIR)/$(TARGET)
 
-# Local build with source-compiled raylib
-local: $(SRC_DIR)/main.c
+raylib:
+	cd $(RAYLIB_PATH) && \
+	mkdir -p build && cd build && \
+	cmake -DBUILD_SHARED_LIBS=OFF -DBUILD_EXAMPLES=OFF .. && \
+	make
+
+# Update local target to depend on raylib
+local: raylib $(SRC_DIR)/main.c
 	@mkdir -p $(BUILD_DIR)
 	$(CC) $< -o $(BUILD_DIR)/$(TARGET) \
         -I$(RAYLIB_PATH)/src \
         -I$(RAYGUI_PATH)/src \
         -L$(RAYLIB_PATH)/build/raylib \
         $(CFLAGS) $(RAYGUI_FLAGS) -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
+
 
 # Native build rules
 $(BUILD_DIR)/$(TARGET): $(SRC_DIR)/main.c

@@ -34,28 +34,14 @@ jobs:
 
       - name: Build raylib
         run: |
-          git clone --depth 1 --branch '5.0' https://github.com/raysan5/raylib.git
           cd raylib
           mkdir build && cd build
-          cmake -DBUILD_SHARED_LIBS=OFF -DBUILD_EXAMPLES=OFF ..
+          cmake -DBUILD_SHARED_LIBS=OFF ..
           make
-          sudo make install
           cd ../..
 
-      - name: Setup raygui
-        run: |
-          git clone --depth 1 https://github.com/raysan5/raygui.git
-
-      - name: Create build directory
-        run: mkdir -p build
-      
       - name: Build Project
-        run: |
-          gcc src/main.c -o build/carousel \
-            -Iraylib/src \
-            -Iraygui/src \
-            -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 \
-            -Wall -Wextra -O2
+        run: make local
 
       - name: Package
         run: |
