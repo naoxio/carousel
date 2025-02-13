@@ -23,8 +23,14 @@
         }
         
         canvas {
-            border-radius: 8px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+            touch-action: none;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            outline: none;
         }
         
         .emscripten {
@@ -62,6 +68,7 @@
     <div class="spinner" id='spinner'></div>
     <div class="emscripten" id="canvas-container">
         <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex=-1></canvas>
+        <input type="text" id="hidden-input" style="position: absolute; opacity: 0; height: 0; width: 0;">
     </div>
     <script type='text/javascript'>
         var statusElement = document.getElementById('status');
@@ -126,6 +133,41 @@
                 if (text) console.error('[post-exception status] ' + text);
             };
         };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const hiddenInput = document.createElement('input');
+            hiddenInput.type = 'text';
+            hiddenInput.style.position = 'absolute';
+            hiddenInput.style.opacity = '0';
+            hiddenInput.style.height = '0';
+            hiddenInput.style.width = '0';
+            document.body.appendChild(hiddenInput);
+
+            const canvas = document.getElementById('canvas');
+            canvas.addEventListener('click', function() {
+                hiddenInput.focus();
+            });
+
+            hiddenInput.addEventListener('input', function(e) {
+                const key = e.data ? e.data.charCodeAt(0) : null;
+                if (key) {
+                    Module.ccall('emscripten_notify_key_pressed', 'void', ['number'], [key]);
+                }
+            });
+
+            hiddenInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Backspace') {
+                    Module.ccall('emscripten_notify_key_pressed', 'void', ['number'], [8]);
+                    e.preventDefault();
+                }
+                if (e.key === 'Enter') {
+                    Module.ccall('emscripten_notify_key_pressed', 'void', ['number'], [13]);
+                    hiddenInput.value = '';
+                    e.preventDefault();
+                }
+            });
+        });
+
     </script>
     {{{ SCRIPT }}}
 

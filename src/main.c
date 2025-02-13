@@ -17,6 +17,7 @@
 #define MAX_OPTIONS 20
 #define MAX_OPTION_LENGTH 50
 
+
 typedef struct {
     char text[MAX_OPTION_LENGTH];
     Color color;
@@ -30,6 +31,21 @@ typedef struct {
     bool isSpinning;
     float spinSpeed;
 } Carousel;
+
+static char globalInputText[MAX_OPTION_LENGTH] = {0};
+static bool globalIsEditMode = false;
+static int globalEditIndex = -1;
+static Carousel* globalCarousel = NULL;
+static float cursorBlinkTime = 0.0f;
+static bool showCursor = true;
+
+char* GetGlobalInputText(void) {
+    return globalInputText;
+}
+
+int GetInputTextLength(void) {
+    return MAX_OPTION_LENGTH;
+}
 
 // Function declarations
 void SaveOptions(Carousel *carousel);
@@ -75,6 +91,12 @@ char* get_data_path() {
 }
 #endif
 
+#ifdef __EMSCRIPTEN__
+EMSCRIPTEN_KEEPALIVE
+void emscripten_notify_key_pressed(int key);
+void ProcessKeyPress(int key);
+#endif
+
 int main(void) {
     InitWindow(800, 600, "Carousel");
     SetTargetFPS(60);
@@ -85,15 +107,14 @@ int main(void) {
     
     LoadOptions(&carousel);
 
-    char inputText[MAX_OPTION_LENGTH] = {0};
-    bool isEditMode = false;
-    int editIndex = -1;
+    // Set global carousel pointer
+    globalCarousel = &carousel;
 
     while (!WindowShouldClose()) {
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             Vector2 mousePos = GetMousePosition();
             if (CheckCollisionPointCircle(mousePos, (Vector2){400, 300}, 150)) {
-                if (carousel.count > 0) {  // Removed the !carousel.isSpinning check
+                if (carousel.count > 0) {
                     carousel.isSpinning = true;
                     carousel.spinSpeed = 20.0f + (float)GetRandomValue(0, 10);
                     carousel.targetAngle = carousel.currentAngle + 
@@ -104,29 +125,29 @@ int main(void) {
 
         int key = GetCharPressed();
         while (key > 0) {
-            if ((strlen(inputText) < MAX_OPTION_LENGTH - 1) && 
+            if ((strlen(globalInputText) < MAX_OPTION_LENGTH - 1) && 
                 (key >= 32) && (key <= 125)) {
-                inputText[strlen(inputText)] = (char)key;
-                inputText[strlen(inputText)] = '\0';
+                globalInputText[strlen(globalInputText)] = (char)key;
+                globalInputText[strlen(globalInputText)] = '\0';
             }
             key = GetCharPressed();
         }
 
         if (IsKeyPressed(KEY_BACKSPACE)) {
-            int len = strlen(inputText);
-            if (len > 0) inputText[len - 1] = '\0';
+            int len = strlen(globalInputText);
+            if (len > 0) globalInputText[len - 1] = '\0';
         }
 
-        if (IsKeyPressed(KEY_ENTER) && strlen(inputText) > 0) {
-            if (isEditMode && editIndex >= 0) {
-                strcpy(carousel.options[editIndex].text, inputText);
-                isEditMode = false;
-                editIndex = -1;
+        if (IsKeyPressed(KEY_ENTER) && strlen(globalInputText) > 0) {
+            if (globalIsEditMode && globalEditIndex >= 0) {
+                strcpy(carousel.options[globalEditIndex].text, globalInputText);
+                globalIsEditMode = false;
+                globalEditIndex = -1;
             } else {
-                AddOption(&carousel, inputText);
+                AddOption(&carousel, globalInputText);
             }
             SaveOptions(&carousel);
-            memset(inputText, 0, MAX_OPTION_LENGTH);
+            memset(globalInputText, 0, MAX_OPTION_LENGTH);
         }
 
         UpdateCarouselSpin(&carousel);
@@ -134,11 +155,26 @@ int main(void) {
         BeginDrawing();
         ClearBackground(RAYWHITE);
 
+        cursorBlinkTime += GetFrameTime();
+        if (cursorBlinkTime >= 0.5f) {
+            cursorBlinkTime = 0;
+            showCursor = !showCursor;
+        }
         DrawCarousel(&carousel);
 
+        // Draw input field background
         DrawRectangle(10, 550, 780, 40, LIGHTGRAY);
-        DrawText(inputText, 20, 560, 20, BLACK);
-        DrawText(isEditMode ? "Edit Mode" : "Add Option", 20, 520, 20, BLACK);
+        
+        // Draw input text
+        DrawText(globalInputText, 20, 560, 20, BLACK);
+        
+        // Draw blinking cursor
+        if (showCursor) {
+            int textWidth = MeasureText(globalInputText, 20);
+            DrawRectangle(20 + textWidth, 560, 2, 20, BLACK);
+        }
+
+        DrawText(globalIsEditMode ? "Edit Mode" : "Add Option", 20, 520, 20, BLACK);
 
         for (int i = 0; i < carousel.count; i++) {
             DrawText(TextFormat("%d: %s", i + 1, carousel.options[i].text), 
@@ -152,9 +188,9 @@ int main(void) {
 
             Rectangle editButton = {290, 50 + i * 30, 60, 20};
             if (GuiButton(editButton, "Edit")) {
-                strcpy(inputText, carousel.options[i].text);
-                isEditMode = true;
-                editIndex = i;
+                strcpy(globalInputText, carousel.options[i].text);
+                globalIsEditMode = true;
+                globalEditIndex = i;
             }
         }
 
@@ -164,6 +200,44 @@ int main(void) {
     CloseWindow();
     return 0;
 }
+#ifdef __EMSCRIPTEN__
+EMSCRIPTEN_KEEPALIVE
+void emscripten_notify_key_pressed(int key) {
+    ProcessKeyPress(key);
+}
+
+void ProcessKeyPress(int key) {
+    char* inputText = GetGlobalInputText();
+    int inputLength = GetInputTextLength();
+    
+    if (key == KEY_BACKSPACE) {
+        int len = strlen(inputText);
+        if (len > 0) inputText[len - 1] = '\0';
+    }
+    else if (key == KEY_ENTER) {
+        if (strlen(inputText) > 0) {
+            if (globalIsEditMode && globalEditIndex >= 0) {
+                strcpy(globalCarousel->options[globalEditIndex].text, inputText);
+                globalIsEditMode = false;
+                globalEditIndex = -1;
+            } else {
+                AddOption(globalCarousel, inputText);
+            }
+            SaveOptions(globalCarousel);
+            memset(inputText, 0, MAX_OPTION_LENGTH);
+        }
+    }
+    else if ((key >= 32) && (key <= 125)) {
+        if (strlen(inputText) < inputLength - 1) {
+            int len = strlen(inputText);
+            inputText[len] = (char)key;
+            inputText[len + 1] = '\0';
+        }
+    }
+}
+
+#endif
+
 void DrawCarousel(Carousel *carousel) {
     if (carousel->count == 0) return;
 
