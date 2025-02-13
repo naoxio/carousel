@@ -274,17 +274,43 @@ void DrawCarousel(Carousel *carousel) {
         RED
     );
 }
+
+#ifdef __EMSCRIPTEN__
+EMSCRIPTEN_KEEPALIVE
+void js_saveToLocalStorage(const char* key, const char* value) {
+    EM_ASM_({
+        try {
+            localStorage.setItem(UTF8ToString($0), UTF8ToString($1));
+        } catch(e) {
+            console.error('Save failed:', e);
+        }
+    }, key, value);
+}
+
+EMSCRIPTEN_KEEPALIVE
+char* js_loadFromLocalStorage(const char* key) {
+    return (char*)EM_ASM_INT({
+        try {
+            var value = localStorage.getItem(UTF8ToString($0)) || '';
+            var length = lengthBytesUTF8(value) + 1;
+            var buffer = _malloc(length);
+            stringToUTF8(value, buffer, length);
+            return buffer;
+        } catch(e) {
+            console.error('Load failed:', e);
+            return 0;
+        }
+    }, key);
+}
+#endif
+
 void SaveOptions(Carousel *carousel) {
 #ifdef __EMSCRIPTEN__
-    // Convert carousel data to string format 
     char buffer[4096] = {0};
-    char js_buffer[8192] = {0}; // Larger buffer for JS code
     char *ptr = buffer;
     
-    // Write count
     ptr += sprintf(ptr, "%d;", carousel->count);
     
-    // Write each option
     for (int i = 0; i < carousel->count; i++) {
         ptr += sprintf(ptr, "%s,%d,%d,%d;", 
             carousel->options[i].text,
@@ -294,13 +320,7 @@ void SaveOptions(Carousel *carousel) {
         );
     }
     
-    // Create JS code string
-    sprintf(js_buffer, 
-        "try { localStorage.setItem('carouselData', '%s'); } "
-        "catch(e) { console.error('Save failed:', e); }", 
-        buffer);
-        
-    emscripten_run_script(js_buffer);
+    js_saveToLocalStorage("carouselData", buffer);
 #else
     // Native file save code remains the same
     char filepath[1024];
@@ -317,23 +337,14 @@ void SaveOptions(Carousel *carousel) {
 
 void LoadOptions(Carousel *carousel) {
 #ifdef __EMSCRIPTEN__
-    const char* data = emscripten_run_script_string(
-        "try { localStorage.getItem('carouselData') || ''; } "
-        "catch(e) { console.error('Load failed:', e); '' }"
-    );
+    char* data = js_loadFromLocalStorage("carouselData");
     
-    if (!data || !strlen(data)) {
+    if (!data) {
         carousel->count = 0;
         return;
     }
     
-    // Make a copy since strtok modifies the string
-    char data_copy[4096];
-    strncpy(data_copy, data, sizeof(data_copy) - 1);
-    data_copy[sizeof(data_copy) - 1] = '\0';
-    
-    // Parse the data
-    char *token = strtok(data_copy, ";");
+    char *token = strtok(data, ";");
     if (token) {
         carousel->count = atoi(token);
         
@@ -358,6 +369,8 @@ void LoadOptions(Carousel *carousel) {
         }
         carousel->count = i;
     }
+    
+    free(data);
 #else
     // Native file load code remains the same
     char filepath[1024];
