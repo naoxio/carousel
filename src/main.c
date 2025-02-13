@@ -121,33 +121,35 @@ int main(void) {
                 }
             }
         }
-
-        int key = GetCharPressed();
-        while (key > 0) {
-            if ((strlen(globalInputText) < MAX_OPTION_LENGTH - 1) && 
-                (key >= 32) && (key <= 125)) {
-                globalInputText[strlen(globalInputText)] = (char)key;
-                globalInputText[strlen(globalInputText)] = '\0';
+        #ifndef __EMSCRIPTEN__
+            // Desktop input handling
+            int key = GetCharPressed();
+            while (key > 0) {
+                if ((strlen(globalInputText) < MAX_OPTION_LENGTH - 1) && 
+                    (key >= 32) && (key <= 125)) {
+                    globalInputText[strlen(globalInputText)] = (char)key;
+                    globalInputText[strlen(globalInputText)] = '\0';
+                }
+                key = GetCharPressed();
             }
-            key = GetCharPressed();
-        }
 
-        if (IsKeyPressed(KEY_BACKSPACE)) {
-            int len = strlen(globalInputText);
-            if (len > 0) globalInputText[len - 1] = '\0';
-        }
-
-        if (IsKeyPressed(KEY_ENTER) && strlen(globalInputText) > 0) {
-            if (globalIsEditMode && globalEditIndex >= 0) {
-                strcpy(carousel.options[globalEditIndex].text, globalInputText);
-                globalIsEditMode = false;
-                globalEditIndex = -1;
-            } else {
-                AddOption(&carousel, globalInputText);
+            if (IsKeyPressed(KEY_BACKSPACE)) {
+                int len = strlen(globalInputText);
+                if (len > 0) globalInputText[len - 1] = '\0';
             }
-            SaveOptions(&carousel);
-            memset(globalInputText, 0, MAX_OPTION_LENGTH);
-        }
+
+            if (IsKeyPressed(KEY_ENTER) && strlen(globalInputText) > 0) {
+                if (globalIsEditMode && globalEditIndex >= 0) {
+                    strcpy(carousel.options[globalEditIndex].text, globalInputText);
+                    globalIsEditMode = false;
+                    globalEditIndex = -1;
+                } else {
+                    AddOption(&carousel, globalInputText);
+                }
+                SaveOptions(&carousel);
+                memset(globalInputText, 0, MAX_OPTION_LENGTH);
+            }
+        #endif
 
         UpdateCarouselSpin(&carousel);
 

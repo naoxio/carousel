@@ -133,41 +133,60 @@
                 if (text) console.error('[post-exception status] ' + text);
             };
         };
-
         document.addEventListener('DOMContentLoaded', function() {
-            const hiddenInput = document.createElement('input');
-            hiddenInput.type = 'text';
-            hiddenInput.style.position = 'absolute';
-            hiddenInput.style.opacity = '0';
-            hiddenInput.style.height = '0';
-            hiddenInput.style.width = '0';
-            document.body.appendChild(hiddenInput);
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'text';
+                hiddenInput.style.position = 'fixed';
+                hiddenInput.style.bottom = '0';
+                hiddenInput.style.left = '0';
+                hiddenInput.style.opacity = '0.01';  // Nearly invisible but still detectable
+                hiddenInput.style.height = '1px';
+                hiddenInput.style.width = '1px';
+                document.body.appendChild(hiddenInput);
 
-            const canvas = document.getElementById('canvas');
-            canvas.addEventListener('click', function() {
+                const canvas = document.getElementById('canvas');
+                
+                function focusInput(e) {
+                    hiddenInput.focus();
+                    // Only prevent default for touch events
+                    if (e.type === 'touchstart') {
+                        e.preventDefault();
+                        if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+                            hiddenInput.click();
+                        }
+                    }
+                }
+
+                canvas.addEventListener('click', focusInput);
+                canvas.addEventListener('touchstart', focusInput);
+
+                hiddenInput.addEventListener('input', function(e) {
+                    if (e.data) {
+                        for (let i = 0; i < e.data.length; i++) {
+                            const key = e.data.charCodeAt(i);
+                            if (key >= 32 && key <= 125) {  // Only handle printable characters
+                                Module.ccall('emscripten_notify_key_pressed', 'void', ['number'], [key]);
+                            }
+                        }
+                    }
+                    hiddenInput.value = '';  // Clear after processing
+                });
+
+                hiddenInput.addEventListener('keydown', function(e) {
+                    if (e.key === 'Backspace') {
+                        Module.ccall('emscripten_notify_key_pressed', 'void', ['number'], [8]);
+                        e.preventDefault();
+                    }
+                    else if (e.key === 'Enter') {
+                        Module.ccall('emscripten_notify_key_pressed', 'void', ['number'], [13]);
+                        hiddenInput.value = '';
+                        e.preventDefault();
+                    }
+                });
+
+                // Initial focus
                 hiddenInput.focus();
             });
-
-            hiddenInput.addEventListener('input', function(e) {
-                const key = e.data ? e.data.charCodeAt(0) : null;
-                if (key) {
-                    Module.ccall('emscripten_notify_key_pressed', 'void', ['number'], [key]);
-                }
-            });
-
-            hiddenInput.addEventListener('keydown', function(e) {
-                if (e.key === 'Backspace') {
-                    Module.ccall('emscripten_notify_key_pressed', 'void', ['number'], [8]);
-                    e.preventDefault();
-                }
-                if (e.key === 'Enter') {
-                    Module.ccall('emscripten_notify_key_pressed', 'void', ['number'], [13]);
-                    hiddenInput.value = '';
-                    e.preventDefault();
-                }
-            });
-        });
-
     </script>
     {{{ SCRIPT }}}
 
