@@ -17,6 +17,9 @@
 #define MAX_OPTIONS 20
 #define MAX_OPTION_LENGTH 50
 
+static float TextToFloat(const char* text) {
+    return (float)atof(text);
+}
 
 typedef struct {
     char text[MAX_OPTION_LENGTH];

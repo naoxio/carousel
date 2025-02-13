@@ -55,8 +55,7 @@ jobs:
             -Iraylib/src \
             -Iraygui/src \
             -lraylib -lGL -lm -lpthread -ldl -lrt -lX11 \
-            -Wall -Wextra -O2 \
-            -DRAYGUI_IMPLEMENTATION
+            -Wall -Wextra -O2
 
       - name: Package
         run: |
