@@ -17,8 +17,9 @@ WEB_ASSETS = $(ASSETS_DIR)/favicon.ico \
 
 # Native build configuration
 CC = gcc
-CFLAGS = -Wall -Wextra -O2 
+CFLAGS = -Wall -Wextra -O2
 LDFLAGS = -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
+INCLUDES = -I./raygui/src
 
 # Web build configuration
 EMCC = emcc
@@ -30,37 +31,17 @@ EMLDFLAGS = -s USE_GLFW=3 -s WASM=1 -s ASYNCIFY -s ALLOW_MEMORY_GROWTH=1 \
             -s MINIFY_HTML=0 \
             --shell-file shell.html
 
-# Local build paths
-RAYLIB_PATH = raylib
-RAYGUI_PATH = raygui
-
 # Raygui flags
-RAYGUI_FLAGS = -DRAYGUI_IMPLEMENTATION -DRAYLIB_VERSION_MINOR=5 -DRAYLIB_VERSION_MAJOR=5
+RAYGUI_FLAGS = -DRAYGUI_IMPLEMENTATION
 
-.PHONY: all clean web raylib_web raygui_web rebuild local copy-web-assets raylib
+.PHONY: all clean web raylib_web raygui_web rebuild local copy-web-assets
+
 # Default target (native build)
 all: $(BUILD_DIR)/$(TARGET)
 
-raylib:
-	cd $(RAYLIB_PATH) && \
-	mkdir -p build && cd build && \
-	cmake -DBUILD_SHARED_LIBS=OFF -DBUILD_EXAMPLES=OFF .. && \
-	make
-
-# Update local target to depend on raylib
-local: raylib $(SRC_DIR)/main.c
-	@mkdir -p $(BUILD_DIR)
-	$(CC) $< -o $(BUILD_DIR)/$(TARGET) \
-        -I$(RAYLIB_PATH)/src \
-        -I$(RAYGUI_PATH)/src \
-        -L$(RAYLIB_PATH)/build/raylib \
-        $(CFLAGS) $(RAYGUI_FLAGS) -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
-
-
-# Native build rules
 $(BUILD_DIR)/$(TARGET): $(SRC_DIR)/main.c
 	@mkdir -p $(BUILD_DIR)
-	$(CC) $< -o $@ $(CFLAGS) $(LDFLAGS)
+	$(CC) $< -o $@ $(INCLUDES) $(CFLAGS) $(RAYGUI_FLAGS) $(LDFLAGS)
 
 # Raylib web build
 $(RAYLIB_WEB_DIR)/src/libraylib.a:
