@@ -8,18 +8,28 @@
     <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2c2c2c">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Carousel</title>
     <style>
         body {
             margin: 0;
+            padding: 0;
             background-color: #2c2c2c;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
+            min-height: 100vh;
             font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+        
+        #canvas-container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         canvas {
@@ -31,18 +41,19 @@
             -ms-user-select: none;
             user-select: none;
             outline: none;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
         }
         
-        .emscripten {
-            padding-right: 0;
-            margin-left: auto;
-            margin-right: auto;
-            display: block;
-        }
         #status {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             color: white;
             text-align: center;
-            margin: 1em 0;
+            z-index: 1000;
         }
         
         .spinner {
@@ -61,6 +72,13 @@
             from {transform: rotate(0deg)}
             to {transform: rotate(359deg)}
         }
+
+        @media (max-width: 768px) {
+            canvas {
+                width: 100%;
+                height: auto;
+            }
+        }
     </style>
 </head>
 <body>
@@ -73,18 +91,30 @@
     <script type='text/javascript'>
         var statusElement = document.getElementById('status');
         var spinnerElement = document.getElementById('spinner');
+        var canvas = document.getElementById('canvas');
+        var container = document.getElementById('canvas-container');
+
+        function resizeCanvas() {
+            var windowWidth = window.innerWidth;
+            var windowHeight = window.innerHeight;
+            var scale = Math.min(windowWidth / 800, windowHeight / 600);
+            
+            canvas.style.width = Math.floor(800 * scale) + 'px';
+            canvas.style.height = Math.floor(600 * scale) + 'px';
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('orientationchange', resizeCanvas);
 
         var Module = {
             preRun: [],
-
             postRun: [
                 function() {
                     statusElement.style.display = 'none';
                     spinnerElement.style.display = 'none';
+                    resizeCanvas();
                 }
             ],
-
-            
             print: (function() {
                 return function(text) {
                     if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
@@ -96,7 +126,6 @@
                 console.error(text);
             },
             canvas: (function() {
-                var canvas = document.getElementById('canvas');
                 canvas.addEventListener("webglcontextlost", function(e) { 
                     alert('WebGL context lost. You will need to reload the page.'); 
                     e.preventDefault(); 
@@ -118,11 +147,6 @@
                     if (!text) spinnerElement.hidden = true;
                 }
                 statusElement.innerHTML = text;
-            },
-            totalDependencies: 0,
-            monitorRunDependencies: function(left) {
-                this.totalDependencies = Math.max(this.totalDependencies, left);
-                Module.setStatus(left ? 'Preparing... (' + (this.totalDependencies-left) + '/' + this.totalDependencies + ')' : 'All downloads complete.');
             }
         };
         Module.setStatus('Downloading...');
@@ -133,60 +157,50 @@
                 if (text) console.error('[post-exception status] ' + text);
             };
         };
-        document.addEventListener('DOMContentLoaded', function() {
-                const hiddenInput = document.createElement('input');
-                hiddenInput.type = 'text';
-                hiddenInput.style.position = 'fixed';
-                hiddenInput.style.bottom = '0';
-                hiddenInput.style.left = '0';
-                hiddenInput.style.opacity = '0.01';  // Nearly invisible but still detectable
-                hiddenInput.style.height = '1px';
-                hiddenInput.style.width = '1px';
-                document.body.appendChild(hiddenInput);
 
-                const canvas = document.getElementById('canvas');
-                
-                function focusInput(e) {
-                    hiddenInput.focus();
-                    // Only prevent default for touch events
-                    if (e.type === 'touchstart') {
-                        e.preventDefault();
-                        if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-                            hiddenInput.click();
+        document.addEventListener('DOMContentLoaded', function() {
+            const hiddenInput = document.getElementById('hidden-input');
+
+            function focusInput(e) {
+                hiddenInput.focus();
+                if (e.type === 'touchstart') {
+                    e.preventDefault();
+                    if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
+                        hiddenInput.click();
+                    }
+                }
+            }
+
+            canvas.addEventListener('click', focusInput);
+            canvas.addEventListener('touchstart', focusInput);
+
+
+            hiddenInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Backspace') {
+                    Module.ccall('ProcessKeyPress', 'void', ['number'], [8]);
+                    e.preventDefault();
+                }
+                else if (e.key === 'Enter') {
+                    Module.ccall('ProcessKeyPress', 'void', ['number'], [13]);
+                    hiddenInput.value = '';
+                    e.preventDefault();
+                }
+            });
+
+            hiddenInput.addEventListener('input', function(e) {
+                if (e.data) {
+                    for (let i = 0; i < e.data.length; i++) {
+                        const key = e.data.charCodeAt(i);
+                        if (key >= 32 && key <= 125) {
+                            Module.ccall('ProcessKeyPress', 'void', ['number'], [key]);
                         }
                     }
                 }
-
-                canvas.addEventListener('click', focusInput);
-                canvas.addEventListener('touchstart', focusInput);
-
-                hiddenInput.addEventListener('input', function(e) {
-                    if (e.data) {
-                        for (let i = 0; i < e.data.length; i++) {
-                            const key = e.data.charCodeAt(i);
-                            if (key >= 32 && key <= 125) {  // Only handle printable characters
-                                Module.ccall('emscripten_notify_key_pressed', 'void', ['number'], [key]);
-                            }
-                        }
-                    }
-                    hiddenInput.value = '';  // Clear after processing
-                });
-
-                hiddenInput.addEventListener('keydown', function(e) {
-                    if (e.key === 'Backspace') {
-                        Module.ccall('emscripten_notify_key_pressed', 'void', ['number'], [8]);
-                        e.preventDefault();
-                    }
-                    else if (e.key === 'Enter') {
-                        Module.ccall('emscripten_notify_key_pressed', 'void', ['number'], [13]);
-                        hiddenInput.value = '';
-                        e.preventDefault();
-                    }
-                });
-
-                // Initial focus
-                hiddenInput.focus();
+                hiddenInput.value = '';
             });
+
+            hiddenInput.focus();
+        });
     </script>
     {{{ SCRIPT }}}
 
