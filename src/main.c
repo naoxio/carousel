@@ -274,7 +274,6 @@ void DrawCarousel(Carousel *carousel) {
         RED
     );
 }
-
 void SaveOptions(Carousel *carousel) {
 #ifdef __EMSCRIPTEN__
     // Convert carousel data to string format
@@ -294,8 +293,8 @@ void SaveOptions(Carousel *carousel) {
         );
     }
     
-    // Save to localStorage
-    EM_ASM({
+    // Save to localStorage using proper EM_ASM_ syntax
+    EM_ASM_({
         localStorage.setItem('carouselData', UTF8ToString($0));
     }, buffer);
 #else
@@ -313,7 +312,7 @@ void SaveOptions(Carousel *carousel) {
 
 void LoadOptions(Carousel *carousel) {
 #ifdef __EMSCRIPTEN__
-    // Get data from localStorage
+    // Get data from localStorage using proper EM_ASM syntax
     char* data = (char*)EM_ASM_INT({
         var data = localStorage.getItem('carouselData');
         if (!data) return 0;
@@ -343,6 +342,7 @@ void LoadOptions(Carousel *carousel) {
             
             if (text && r && g && b) {
                 strncpy(carousel->options[i].text, text, MAX_OPTION_LENGTH - 1);
+                carousel->options[i].text[MAX_OPTION_LENGTH - 1] = '\0';  // Ensure null termination
                 carousel->options[i].color = (Color){
                     (unsigned char)atoi(r),
                     (unsigned char)atoi(g),
@@ -373,9 +373,12 @@ void LoadOptions(Carousel *carousel) {
             carousel->count = 0;
         }
         fclose(file);
+    } else {
+        carousel->count = 0;
     }
 #endif
 }
+
 void AddOption(Carousel *carousel, const char *text) {
     if (carousel->count < MAX_OPTIONS) {
         strcpy(carousel->options[carousel->count].text, text);

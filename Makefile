@@ -26,11 +26,11 @@ EMCC = emcc
 EMFLAGS = -Wall -Wextra -O2 -I$(RAYLIB_WEB_DIR)/src -I$(RAYGUI_WEB_DIR)/src -DPLATFORM_WEB
 EMLDFLAGS = -s USE_GLFW=3 -s WASM=1 -s ASYNCIFY -s ALLOW_MEMORY_GROWTH=1 \
             -s INITIAL_MEMORY=67108864 \
-            -s EXPORTED_RUNTIME_METHODS=ccall \
-            -s EXPORTED_FUNCTIONS='["_main", "_emscripten_notify_key_pressed"]' \
+            -s EXPORTED_RUNTIME_METHODS='["ccall", "UTF8ToString", "stringToUTF8", "lengthBytesUTF8"]' \
+            -s EXPORTED_FUNCTIONS='["_main", "_malloc", "_free", "_emscripten_notify_key_pressed"]' \
             -s MINIFY_HTML=0 \
             --shell-file shell.html
-
+			
 # Raygui flags
 RAYGUI_FLAGS = -DRAYGUI_IMPLEMENTATION
 
