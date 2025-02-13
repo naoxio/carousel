@@ -276,8 +276,9 @@ void DrawCarousel(Carousel *carousel) {
 }
 void SaveOptions(Carousel *carousel) {
 #ifdef __EMSCRIPTEN__
-    // Convert carousel data to string format
+    // Convert carousel data to string format 
     char buffer[4096] = {0};
+    char js_buffer[8192] = {0}; // Larger buffer for JS code
     char *ptr = buffer;
     
     // Write count
@@ -293,11 +294,15 @@ void SaveOptions(Carousel *carousel) {
         );
     }
     
-    // Save to localStorage using proper EM_ASM_ syntax
-    EM_ASM_({
-        localStorage.setItem('carouselData', UTF8ToString($0));
-    }, buffer);
+    // Create JS code string
+    sprintf(js_buffer, 
+        "try { localStorage.setItem('carouselData', '%s'); } "
+        "catch(e) { console.error('Save failed:', e); }", 
+        buffer);
+        
+    emscripten_run_script(js_buffer);
 #else
+    // Native file save code remains the same
     char filepath[1024];
     snprintf(filepath, sizeof(filepath), "%s/options.dat", get_data_path());
     
@@ -312,24 +317,23 @@ void SaveOptions(Carousel *carousel) {
 
 void LoadOptions(Carousel *carousel) {
 #ifdef __EMSCRIPTEN__
-    // Get data from localStorage using proper EM_ASM syntax
-    char* data = (char*)EM_ASM_INT({
-        var data = localStorage.getItem('carouselData');
-        if (!data) return 0;
-        
-        var lengthBytes = lengthBytesUTF8(data) + 1;
-        var stringOnWasmHeap = _malloc(lengthBytes);
-        stringToUTF8(data, stringOnWasmHeap, lengthBytes);
-        return stringOnWasmHeap;
-    });
+    const char* data = emscripten_run_script_string(
+        "try { localStorage.getItem('carouselData') || ''; } "
+        "catch(e) { console.error('Load failed:', e); '' }"
+    );
     
-    if (!data) {
+    if (!data || !strlen(data)) {
         carousel->count = 0;
         return;
     }
     
+    // Make a copy since strtok modifies the string
+    char data_copy[4096];
+    strncpy(data_copy, data, sizeof(data_copy) - 1);
+    data_copy[sizeof(data_copy) - 1] = '\0';
+    
     // Parse the data
-    char *token = strtok(data, ";");
+    char *token = strtok(data_copy, ";");
     if (token) {
         carousel->count = atoi(token);
         
@@ -342,7 +346,7 @@ void LoadOptions(Carousel *carousel) {
             
             if (text && r && g && b) {
                 strncpy(carousel->options[i].text, text, MAX_OPTION_LENGTH - 1);
-                carousel->options[i].text[MAX_OPTION_LENGTH - 1] = '\0';  // Ensure null termination
+                carousel->options[i].text[MAX_OPTION_LENGTH - 1] = '\0';
                 carousel->options[i].color = (Color){
                     (unsigned char)atoi(r),
                     (unsigned char)atoi(g),
@@ -352,12 +356,10 @@ void LoadOptions(Carousel *carousel) {
                 i++;
             }
         }
-        carousel->count = i;  // Update count to actual number parsed
+        carousel->count = i;
     }
-    
-    // Free the allocated memory
-    free(data);
 #else
+    // Native file load code remains the same
     char filepath[1024];
     snprintf(filepath, sizeof(filepath), "%s/options.dat", get_data_path());
     
