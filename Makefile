@@ -45,7 +45,10 @@ EMLDFLAGS = -s USE_GLFW=3 -s WASM=1 -s ASYNCIFY -s ALLOW_MEMORY_GROWTH=1 \
             -s "EXTRA_EXPORTED_RUNTIME_METHODS=['getValue','setValue']" \
             -s NO_EXIT_RUNTIME=1 \
             -s MINIFY_HTML=0 \
-            --shell-file shell.html
+            --shell-file shell.html \
+			--js-library storage_web.js
+
+
 
 .PHONY: all clean web web-debug debug raylib_web raygui_web rebuild local copy-web-assets
 

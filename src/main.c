@@ -3,7 +3,6 @@
 #include "raygui.h"
 #include "carousel.h"
 #include "input_handler.h"
-#include "ui_manager.h"
 #include "theme_manager.h"
 #include <string.h>
 
@@ -31,13 +30,11 @@ int main(void) {
     
     LoadOptions(&carousel);
     globalCarousel = &carousel;
-    UpdateUIPositions();
-    UpdateThemeManager(); 
 
     while (!WindowShouldClose()) {
         screenWidth = GetScreenWidth();
         screenHeight = GetScreenHeight();
-        UpdateUIPositions();
+        UpdateThemeManager(); 
 
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
             Vector2 mousePos = GetMousePosition();
@@ -84,11 +81,14 @@ int main(void) {
             cursorBlinkTime = 0;
             showCursor = !showCursor;
         }
- DrawCarousel(&carousel);
+        DrawCarousel(&carousel);
 
         float inputWidth = screenWidth - 120;
         float inputY = screenHeight - 50;
         float labelY = screenHeight - 80;
+
+        float submitX = screenWidth - 100;
+        Rectangle submitButton = (Rectangle){submitX, inputY, 80, 40};
 
         // Update UI elements with theme colors
         DrawRectangle(10, inputY, inputWidth, 40, currentTheme.secondary);
@@ -127,6 +127,20 @@ int main(void) {
             }
         }
 
+        // Add submit button
+        if (GuiButton(submitButton, "Submit")) {
+            if (strlen(globalInputText) > 0) {
+                if (globalIsEditMode && globalEditIndex >= 0) {
+                    strcpy(globalCarousel->options[globalEditIndex].text, globalInputText);
+                    globalIsEditMode = false;
+                    globalEditIndex = -1;
+                } else {
+                    AddOption(globalCarousel, globalInputText);
+                }
+                SaveOptions(globalCarousel);
+                memset(globalInputText, 0, MAX_OPTION_LENGTH);
+            }
+        }
         EndDrawing();
     }
 

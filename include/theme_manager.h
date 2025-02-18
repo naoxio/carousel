@@ -2,7 +2,7 @@
 #define THEME_MANAGER_H
 
 #include "raylib.h"
-
+#include "storage.h"
 typedef struct {
     Color background;
     Color text;

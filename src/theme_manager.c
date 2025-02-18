@@ -6,8 +6,6 @@
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
-#else
-#include "storage.h"
 #endif
 
 ThemeManager themeManager = {0};
@@ -49,16 +47,23 @@ void InitThemeManager(void) {
 }
 
 void UpdateThemeManager(void) {
-    const int dropdownWidth = 120;
-    const int dropdownHeight = 30;
+    int dropdownWidth = 120;  // Width of the dropdown
+    int dropdownHeight = 30;  // Height of the dropdown
+    int padding = 10;  // Padding from the screen edges
+
+    int dropdownX = GetScreenWidth() - dropdownWidth - padding;
+    
+    // Y position always stays at top padding
+    int dropdownY = padding;
+
+    // Update the dropdown bounds dynamically
     themeManager.dropdownBounds = (Rectangle){
-        GetScreenWidth() - dropdownWidth - 10,
-        10,
-        dropdownWidth,
+        dropdownX,     // X position from right
+        dropdownY,     // Y position from top
+        dropdownWidth, 
         dropdownHeight
     };
 }
-
 void DrawThemeSelector(void) {
     static bool dropdownEditMode = false;
     static const char* themeNames[] = {"Light", "Dark", "Sunset"};
