@@ -12,7 +12,6 @@ SOURCES = $(SRC_DIR)/main.c \
           $(SRC_DIR)/carousel.c \
           $(SRC_DIR)/input_handler.c \
           $(SRC_DIR)/storage.c \
-          $(SRC_DIR)/ui_manager.c \
           $(SRC_DIR)/theme_manager.c
 
 # Object files

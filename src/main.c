@@ -81,8 +81,8 @@ int main(void) {
             cursorBlinkTime = 0;
             showCursor = !showCursor;
         }
-        DrawCarousel(&carousel);
-
+        DrawCarousel(&carousel, screenWidth, screenHeight);
+        
         float inputWidth = screenWidth - 120;
         float inputY = screenHeight - 50;
         float labelY = screenHeight - 80;

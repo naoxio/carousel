@@ -26,7 +26,7 @@ void SaveOptions(Carousel *carousel);
 void LoadOptions(Carousel *carousel);
 void AddOption(Carousel *carousel, const char *text);
 void DeleteOption(Carousel *carousel, int index);
-void DrawCarousel(Carousel *carousel);
+void DrawCarousel(Carousel *carousel, int screenWidth, int screenHeight);
 Color GenerateRandomColor(void);
 void UpdateCarouselSpin(Carousel *carousel);
 float GetSectorAngle(int optionCount);

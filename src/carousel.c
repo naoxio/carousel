@@ -1,12 +1,11 @@
 #include "carousel.h"
 #include "raylib.h"
-#include "ui_manager.h"
 #include <math.h>
 #include "theme_manager.h"
 
-void DrawCarousel(Carousel *carousel) {
+void DrawCarousel(Carousel *carousel, int screenWidth, int screenHeight) {
     if (carousel->count == 0) return;
-
+    
     Theme currentTheme = GetCurrentTheme();
     float centerX = screenWidth / 2;
     float centerY = screenHeight / 2;
@@ -80,7 +79,6 @@ void DeleteOption(Carousel *carousel, int index) {
         carousel->count--;
     }
 }
-
 void UpdateCarouselSpin(Carousel *carousel) {
     if (carousel->isSpinning) {
         if (carousel->spinSpeed > 1.0f) {
@@ -102,6 +100,10 @@ void UpdateCarouselSpin(Carousel *carousel) {
             carousel->currentAngle += moveSpeed;
             
             if (fabs(moveSpeed) < 0.01f) {
+                // Only save if we're transitioning from spinning to stopped
+                if (carousel->isSpinning) {
+                    SaveOptions(carousel);
+                }
                 carousel->isSpinning = false;
                 carousel->currentAngle = targetAngle;
                 carousel->spinSpeed = 0.0f;

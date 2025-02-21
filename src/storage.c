@@ -9,7 +9,6 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #endif
-
 void SaveOptions(Carousel *carousel) {
 #ifdef __EMSCRIPTEN__
     char buffer[4096] = {0};
@@ -23,6 +22,8 @@ void SaveOptions(Carousel *carousel) {
             carousel->options[i].color.b
         );
     }
+    // Add the angle at the end
+    ptr += sprintf(ptr, "%.2f", carousel->currentAngle);
     js_saveToLocalStorage("carouselData", buffer);
 #else
     char filepath[1024];
@@ -31,6 +32,7 @@ void SaveOptions(Carousel *carousel) {
     if (file) {
         fwrite(&carousel->count, sizeof(int), 1, file);
         fwrite(carousel->options, sizeof(Option), carousel->count, file);
+        fwrite(&carousel->currentAngle, sizeof(float), 1, file);  // Add angle at end
         fclose(file);
     }
 #endif
@@ -41,6 +43,7 @@ void LoadOptions(Carousel *carousel) {
     char* data = js_loadFromLocalStorage("carouselData");
     if (!data) {
         carousel->count = 0;
+        carousel->currentAngle = -90.0f;
         return;
     }
     char *token = strtok(data, ";");
@@ -66,6 +69,14 @@ void LoadOptions(Carousel *carousel) {
             }
         }
         carousel->count = i;
+        
+        // Try to read the angle from the last token
+        token = strtok(NULL, ";");
+        if (token) {
+            carousel->currentAngle = atof(token);
+        } else {
+            carousel->currentAngle = -90.0f;
+        }
     }
     free(data);
 #else
@@ -78,9 +89,15 @@ void LoadOptions(Carousel *carousel) {
         if (read != 1) carousel->count = 0;
         read = fread(carousel->options, sizeof(Option), carousel->count, file);
         if (read != carousel->count) carousel->count = 0;
+        
+        // Try to read angle from end of file
+        if (fread(&carousel->currentAngle, sizeof(float), 1, file) != 1) {
+            carousel->currentAngle = -90.0f;
+        }
         fclose(file);
     } else {
         carousel->count = 0;
+        carousel->currentAngle = -90.0f;
     }
 #endif
 }
